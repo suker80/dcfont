@@ -1,4 +1,5 @@
 paper : http://www.icst.pku.edu.cn/zlian/docs/20181024110234919639.pdf
+![Alt Text](model.bmp)
 ## Requirements 
 - python 2.7
 - Tensorflow 1.14
