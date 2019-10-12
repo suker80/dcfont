@@ -14,14 +14,14 @@ def image_load(path):
 
     return img
 
-def make_batch(reference_font='KaiTi',train_root='dataset',batch_size=16,num_class=20):
+def make_batch(reference_font='reference',train_root='dataset',batch_size=16,num_class=20):
     x=[]
     y=[]
     labels=[]
 
-    chars = os.listdir(reference_font)
-    ref_path = [os.path.join(reference_font,char) for char in chars]
     fonts = [os.path.join(train_root,font) for font in os.listdir(train_root)]
+    chars = os.listdir(fonts[0])
+    ref_path = [os.path.join(reference_font,char) for char in chars]
 
     for i in range(batch_size):
         idx = np.random.choice(len(chars))
@@ -64,4 +64,4 @@ def make_batch2(reference_font='reference',target='calli3',batch_size=16,num_cla
         x.append(ref_img)
         y.append(target_image)
     return x,y,labels
-make_batch2()
+make_batch()
