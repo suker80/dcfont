@@ -47,7 +47,7 @@ class vgg(object):
         return x_batch, y_batch
 
     def build_network(self,input=None, height=224, width=224, channel=1,reuse=False):
-        self.y = tf.placeholder(tf.int64, shape=[self.batch_size, 100], name='labels_placeholder')
+        self.y = tf.placeholder(tf.int64, shape=[None, 100], name='labels_placeholder')
 
         def weight_variable(shape, name="weights"):
             initial = tf.truncated_normal(shape, dtype=tf.float32, stddev=0.1)

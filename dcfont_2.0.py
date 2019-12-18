@@ -4,23 +4,23 @@ import matplotlib.pyplot as plt
 import train_vgg
 import util
 from ops import *
-import cv2
+
 EPS = 1e-12
-from PIL import Image
+
 
 class DCFont():
 
     def __init__(self, num_class, learning_rate, batch_size,vgg_path):
-        self.x = tf.placeholder(dtype=tf.float32, shape=[None, 224, 224, 1])
+        self.x = tf.compat.v1.placeholder(dtype=tf.float32, shape=[batch_size, 224, 224, 1])
         self.num_class = num_class
-        self.target = tf.placeholder(dtype=tf.float32, shape=[None, 224, 224, 1])
-        self.label = tf.placeholder(dtype=tf.float32, shape=[None, 20])
+        self.target = tf.compat.v1.placeholder(dtype=tf.float32, shape=[batch_size, 224, 224, 1])
+        self.label = tf.compat.v1.placeholder(dtype=tf.float32, shape=[batch_size, 20])
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.vgg_path = vgg_path
 
     def network(self):
-        with tf.variable_scope('style_transfer_network'):
+        with tf.compat.v1.variable_scope('style_transfer_network'):
             conv_1 = RBC(self.x, num_output=64, kernel=[5, 5], stride=[2, 2])
             conv_2 = RBC(conv_1, num_output=128, kernel=[5, 5], stride=[2, 2])
             conv_3 = RBC(conv_2, num_output=256, kernel=[5, 5], stride=[2, 2])
@@ -61,17 +61,17 @@ class DCFont():
         self.vgg = train_vgg.vgg()
         self.vgg.build_network(self.x)
         self.vgg.optim()
-        self.vgg_vars = tf.all_variables()
+        self.vgg_vars = tf.compat.v1.all_variables()
 
         conv5_3 = self.vgg.output_conv5_3
-        with tf.variable_scope('reconstruct'):
+        with tf.compat.v1.variable_scope('reconstruct'):
             enc_1 = conv2d(conv5_3, num_output=256, kernel=[5, 5], stride=[1, 1])
             enc_2 = conv2d(enc_1, num_output=128, kernel=[5, 5], stride=[1, 1])
             self.category = conv2d(enc_2, num_output=64, kernel=[5, 5], stride=[1, 1])
             dec_2 = deconv2d(self.category, 128, kernel=[5, 5], stride=[1, 1])
             dec_1 = deconv2d(tf.concat([dec_2, enc_2], axis=3), 256, kernel=[5, 5], stride=[1, 1])
             self.style_vector = deconv2d(tf.concat([dec_1, enc_1], axis=3), 512, kernel=[5, 5], stride=[1, 1])
-            self.L_style = tf.reduce_mean(tf.abs(self.style_vector - conv5_3))
+            self.L_style = tf.reduce_mean(input_tensor=tf.abs(self.style_vector - conv5_3))
 
     def discriminator(self, discrim_inputs, discrim_targets, reuse=False):
         df_dim = 64
@@ -85,54 +85,54 @@ class DCFont():
 
         h3 = leaky_relu(conv2d(h2, df_dim * 8, kernel=[5, 5]))
 
-        fc1 = tf.layers.dense(tf.layers.flatten(h3), 1)
+        fc1 = tf.compat.v1.layers.dense(tf.reshape(h3, [self.batch_size, -1]), 1)
 
-        fc2 = tf.layers.dense(tf.layers.flatten(h3), 20)
+        fc2 = tf.compat.v1.layers.dense(tf.reshape(h3, [self.batch_size, -1]), 20)
 
         return tf.nn.sigmoid(fc1), fc1, fc2
 
     def mse(self, input_data, output):
-        return tf.reduce_mean(tf.squared_difference(input_data, output))
+        return tf.reduce_mean(input_tensor=tf.math.squared_difference(input_data, output))
 
     def build_model(self):
 
         self.vgg_net()
         self.output = self.network()
-        self.L1_loss = tf.reduce_mean(tf.abs(self.target - self.output)) * 10
+        self.L1_loss = tf.reduce_mean(input_tensor=tf.abs(self.target - self.output)) * 10
         layers = self.vgg.build_network(self.x, reuse=True)
         fake_layers = self.vgg.build_network(self.output, reuse=True)
         self.style_constancy = self.mse(layers[0], fake_layers[0]) + self.mse(layers[1], fake_layers[1]) + self.mse(
             layers[2], fake_layers[2])
-        with tf.variable_scope('discriminator'):
+        with tf.compat.v1.variable_scope('discriminator'):
             real, real_logits, self.real_class = self.discriminator(self.x, self.target)
-        with tf.variable_scope('discriminator', reuse=True):
+        with tf.compat.v1.variable_scope('discriminator', reuse=True):
             fake, fake_logits, self.fake_class = self.discriminator(self.x, self.output)
         real_style = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=real_logits, labels=tf.ones_like(real)))
+            input_tensor=tf.nn.sigmoid_cross_entropy_with_logits(logits=real_logits, labels=tf.ones_like(real)))
         fake_style = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=real_logits, labels=tf.zeros_like(fake)))
+            input_tensor=tf.nn.sigmoid_cross_entropy_with_logits(logits=real_logits, labels=tf.zeros_like(fake)))
 
-        self.real_category = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.real_class, labels=self.label))
-        self.fake_category = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.fake_class, labels=self.label))
+        self.real_category = tf.reduce_mean(input_tensor=tf.nn.sigmoid_cross_entropy_with_logits(logits=self.real_class, labels=self.label))
+        self.fake_category = tf.reduce_mean(input_tensor=tf.nn.sigmoid_cross_entropy_with_logits(logits=self.fake_class, labels=self.label))
 
         self.d_loss = real_style + fake_style + self.real_category
         self.g_loss = fake_style + self.fake_category + self.style_constancy + self.L1_loss
 
-        reconstruct_vars = [var for var in tf.trainable_variables() if 'reconstruct' in var.name]
-        style_vars = [var for var in tf.trainable_variables() if 'style_transfer_network' in var.name]
-        disc_vars = [var for var in tf.trainable_variables() if 'discriminator' in var.name]
-        self.reconstruct_opt = tf.train.AdamOptimizer(self.learning_rate).minimize(loss=self.L_style,var_list=reconstruct_vars)
-        self.d_opt = tf.train.AdamOptimizer(self.learning_rate).minimize(self.d_loss, var_list=disc_vars)
-        self.g_opt = tf.train.AdamOptimizer(self.learning_rate).minimize(self.g_loss, var_list=style_vars)
+        reconstruct_vars = [var for var in tf.compat.v1.trainable_variables() if 'reconstruct' in var.name]
+        style_vars = [var for var in tf.compat.v1.trainable_variables() if 'style_transfer_network' in var.name]
+        disc_vars = [var for var in tf.compat.v1.trainable_variables() if 'discriminator' in var.name]
+        self.reconstruct_opt = tf.compat.v1.train.AdamOptimizer(self.learning_rate).minimize(loss=self.L_style,var_list=reconstruct_vars)
+        self.d_opt = tf.compat.v1.train.AdamOptimizer(self.learning_rate).minimize(self.d_loss, var_list=disc_vars)
+        self.g_opt = tf.compat.v1.train.AdamOptimizer(self.learning_rate).minimize(self.g_loss, var_list=style_vars)
 
     def train(self, reference, train_root, epoch, step,save_path):
         self.build_model()
-        all_saver = tf.train.Saver()
-        file_writer = tf.summary.FileWriter('checkpoint', tf.get_default_graph())
-        with tf.Session() as sess:
+        all_saver = tf.compat.v1.train.Saver()
+        file_writer = tf.compat.v1.summary.FileWriter('checkpoint', tf.compat.v1.get_default_graph())
+        with tf.compat.v1.Session() as sess:
             self.vgg(sess, self.vgg_vars,ckpt=self.vgg_path)
-            init_vars = [var for var in tf.all_variables() if var not in self.vgg_vars]
-            sess.run(tf.initialize_variables(init_vars))
+            init_vars = [var for var in tf.compat.v1.all_variables() if var not in self.vgg_vars]
+            sess.run(tf.compat.v1.initialize_variables(init_vars))
             # all_saver.restore(sess=sess,save_path=tf.train.latest_checkpoint('checkpoint'))
             for ep in range(epoch):
 
@@ -152,14 +152,14 @@ class DCFont():
 
     def train_part2(self, reference, target, epoch, step,save_path2):
         self.build_model()
-        all_saver = tf.train.Saver()
-        with tf.Session() as sess:
+        all_saver = tf.compat.v1.train.Saver()
+        with tf.compat.v1.Session() as sess:
             self.vgg(sess, self.vgg_vars)
-            init_vars = [var for var in tf.all_variables() if var not in self.vgg_vars]
-            sess.run(tf.initialize_variables(init_vars))
+            init_vars = [var for var in tf.compat.v1.all_variables() if var not in self.vgg_vars]
+            sess.run(tf.compat.v1.initialize_variables(init_vars))
             all_saver.restore(sess=sess,save_path= 'checkpoint/dcfont-999')
-
             for ep in range(epoch):
+
                 for st in range(step):
                     input_x, input_y, label = util.make_batch2(reference,target=target)
                     result, style_loss, g_loss, d_loss, L1_loss, _, _, _ = sess.run(
@@ -174,13 +174,13 @@ class DCFont():
                 all_saver.save(sess=sess, save_path=save_path2, global_step=st)
     def test(self,output_dir,reference, train_root, epoch, step):
         self.build_model()
-        all_saver = tf.train.Saver()
+        all_saver = tf.compat.v1.train.Saver()
         if not os.path.exists(output_dir):
             os.mkdir(output_dir)
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             self.vgg(sess, self.vgg_vars)
-            init_vars = [var for var in tf.all_variables() if var not in self.vgg_vars]
-            sess.run(tf.initialize_variables(init_vars))
+            init_vars = [var for var in tf.compat.v1.all_variables() if var not in self.vgg_vars]
+            sess.run(tf.compat.v1.initialize_variables(init_vars))
             all_saver.restore(sess=sess, save_path=tf.train.latest_checkpoint('checkpoint'))
             test_imgs = os.listdir(reference)
 
@@ -226,35 +226,6 @@ class DCFont():
             # plt.savefig('result2.png')
 
 
-    def string(self):
-        self.build_model()
-        calli_string = '새해복많이받으세요'
-        all_saver = tf.train.Saver()
-        with tf.Session() as sess:
-            self.vgg(sess, self.vgg_vars)
-            init_vars = [var for var in tf.all_variables() if var not in self.vgg_vars]
-            sess.run(tf.initialize_variables(init_vars))
-            all_saver.restore(sess=sess, save_path=tf.train.latest_checkpoint('checkpoint'))
-            imgs = []
-            for str in calli_string:
-                ref_img = os.path.join('reference', str + '.png')
-                ref_img = np.expand_dims(util.image_load(ref_img), 0)
-                imgs.append(sess.run([self.output], feed_dict={self.x: ref_img}))
-
-            for i in range(len(calli_string)):
-                if i > 0:
-                    temp = np.concatenate([temp, imgs[i].reshape(224, 224)], 1)
-                else:
-                    temp = imgs[0].reshape(224, 224)
-            plt.imsave('새해복.png',temp)
-
-    def zoom(self,img):
-        plt.
-
-
-
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -286,11 +257,10 @@ if __name__ == '__main__':
                    batch_size=args.batch_size,
                    vgg_path = args.vgg_path
                    )
-    model.string()
-    # if args.mode == 'train':
-    #     model.train(args.reference_root, args.train_root, args.epoch, args.step,args.save_path)
-    # elif args.mode == 'train2':
-    #     model.train_part2(args.reference_root,args.target, args.epoch, args.step,args.save_path2)
-    # elif args.mode == 'test':
-    #     model.test(args.reference_root, args.train_root, args.epoch, args.step,args.output_dir)
 
+    if args.mode == 'train':
+        model.train(args.reference_root, args.train_root, args.epoch, args.step,args.save_path)
+    elif args.mode == 'train2':
+        model.train_part2(args.reference_root,args.target, args.epoch, args.step,args.save_path2)
+    elif args.mode == 'test':
+        model.test(args.reference_root, args.train_root, args.epoch, args.step,args.output_dir)
