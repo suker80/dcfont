@@ -239,14 +239,14 @@ class DCFont():
             for str in calli_string:
                 ref_img = os.path.join('reference', str + '.png')
                 ref_img = np.expand_dims(util.image_load(ref_img), 0)
-                imgs.append(sess.run([self.output], feed_dict={self.x: ref_img}))
+                imgs.append(sess.run(self.output, feed_dict={self.x: ref_img}))
 
             for i in range(len(calli_string)):
                 if i > 0:
                     temp = np.concatenate([temp, imgs[i].reshape(224, 224)], 1)
                 else:
                     temp = imgs[0].reshape(224, 224)
-            plt.imsave('새해복.png',temp)
+            plt.imsave('새해복.png',temp,cmap='binary_r')
 
     def zoom(self,img):
         plt.
