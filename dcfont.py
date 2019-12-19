@@ -284,5 +284,5 @@ if __name__ == '__main__':
     # elif args.mode == 'train2':
     #     model.train_part2(args.reference_root,args.target, args.epoch, args.step,args.save_path2)
     # elif args.mode == 'test':
-    #     model.test(args.reference_root, args.train_root, args.epoch, args.step,args.output_dir)
+    #     model.test(args.output_dir,args.reference_root, args.train_root, args.epoch, args.step)
 
