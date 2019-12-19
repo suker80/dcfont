@@ -225,36 +225,28 @@ class DCFont():
             #     plt.axis('off')
             # plt.savefig('result2.png')
 
-
     def string(self):
         self.build_model()
-        calli_string = '새해복많이받으세요'
+        calli_strings = ['새해복많이받으세요','생일축하합니다','몸건강히하세요','메리크리스마스','즐거운한가위']
         all_saver = tf.train.Saver()
         with tf.Session() as sess:
             self.vgg(sess, self.vgg_vars)
             init_vars = [var for var in tf.all_variables() if var not in self.vgg_vars]
             sess.run(tf.initialize_variables(init_vars))
             all_saver.restore(sess=sess, save_path=tf.train.latest_checkpoint('checkpoint'))
-            imgs = []
-            for str in calli_string:
-                ref_img = os.path.join('reference', str + '.png')
-                ref_img = np.expand_dims(util.image_load(ref_img), 0)
-                imgs.append(sess.run(self.output, feed_dict={self.x: ref_img}))
+            for calli_string in calli_strings:
+                imgs = []
+                for str in calli_string:
+                    ref_img = os.path.join('reference', str + '.png')
+                    ref_img = np.expand_dims(util.image_load(ref_img), 0)
+                    imgs.append(sess.run(self.output, feed_dict={self.x: ref_img}))
 
-            for i in range(len(calli_string)):
-                if i > 0:
-                    temp = np.concatenate([temp, imgs[i].reshape(224, 224)], 1)
-                else:
-                    temp = imgs[0].reshape(224, 224)
-            plt.imsave('새해복.png',temp,cmap='binary_r')
-
-    def zoom(self,img):
-        plt.
-
-
-
-
-
+                for i in range(len(calli_string)):
+                    if i > 0:
+                        temp = np.concatenate([temp, imgs[i].reshape(224, 224)], 1)
+                    else:
+                        temp = imgs[0].reshape(224, 224)
+                plt.imsave(calli_string + '.png',temp,cmap='binary_r')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
