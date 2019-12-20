@@ -1,3 +1,4 @@
+import re
 import argparse
 import os
 import matplotlib.pyplot as plt
@@ -6,14 +7,15 @@ import util
 from ops import *
 import cv2
 EPS = 1e-12
+SIZE = 224
 from PIL import Image
 
 class DCFont():
 
     def __init__(self, num_class, learning_rate, batch_size,vgg_path):
-        self.x = tf.placeholder(dtype=tf.float32, shape=[None, 224, 224, 1])
+        self.x = tf.placeholder(dtype=tf.float32, shape=[None, SIZE, SIZE, 1])
         self.num_class = num_class
-        self.target = tf.placeholder(dtype=tf.float32, shape=[None, 224, 224, 1])
+        self.target = tf.placeholder(dtype=tf.float32, shape=[None, SIZE, SIZE, 1])
         self.label = tf.placeholder(dtype=tf.float32, shape=[None, 20])
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -192,7 +194,7 @@ class DCFont():
                     imgs.append(util.image_load(path))
                 result = sess.run([self.output],feed_dict={self.x:imgs})
                 for j in range(self.batch_size):
-                    plt.imsave(os.path.join(output_dir,loads[j]),result[0][j].reshape(224,224),cmap='binary_r',format='png')
+                    plt.imsave(os.path.join(output_dir,loads[j]),result[0][j].reshape(SIZE,SIZE),cmap='binary_r',format='png')
 
 
 
@@ -211,42 +213,68 @@ class DCFont():
             #     result = sess.run([self.output],feed_dict={self.x:loads})
             #     results.append(result)
             #     # for j in range(self.batch_size):
-            #     #     plt.imsave(os.path.join('result',imgs[j]),result[0][j].reshape(224,224),cmap='binary_r')
+            #     #     plt.imsave(os.path.join('result',imgs[j]),result[0][j].reshape(SIZE,SIZE),cmap='binary_r')
             #
             # for i in range(80):
             #     plt.subplot(10,8,i+1)
-            #     plt.imshow(target[i].reshape(224,224),cmap='binary_r')
+            #     plt.imshow(target[i].reshape(SIZE,SIZE),cmap='binary_r')
             #     plt.axis('off')
             # plt.savefig('result1.png')
             # for i in range(80):
-            #     result = np.asarray(results).reshape(80, 224, 224)
+            #     result = np.asarray(results).reshape(80, SIZE, SIZE)
             #     plt.subplot(10,8,i+1)
-            #     plt.imshow(result[i].reshape(224,224),cmap='binary_r')
+            #     plt.imshow(result[i].reshape(SIZE,SIZE),cmap='binary_r')
             #     plt.axis('off')
             # plt.savefig('result2.png')
 
+    def pad_resize(self,im, target_size, fill_color=(255)):
+        x, y = im.size
+        target_size = int(target_size)
+        new_im = Image.new('L', (SIZE, target_size), fill_color)
+        new_im.paste(im, (int((SIZE - x) / 2), int((target_size - y) / 2)))
+        return np.asarray(new_im)
+
     def string(self):
+
         self.build_model()
         calli_strings = ['새해복많이받으세요','생일축하합니다','몸건강히하세요','메리크리스마스','즐거운한가위']
+        zoom_str = ['복','축','몸','스','한']
+        zoom_rate =  1.8
+        target_size = int(SIZE * zoom_rate)
         all_saver = tf.train.Saver()
         with tf.Session() as sess:
             self.vgg(sess, self.vgg_vars)
             init_vars = [var for var in tf.all_variables() if var not in self.vgg_vars]
             sess.run(tf.initialize_variables(init_vars))
             all_saver.restore(sess=sess, save_path=tf.train.latest_checkpoint('checkpoint'))
-            for calli_string in calli_strings:
+            for j,calli_string in enumerate(calli_strings):
                 imgs = []
                 for str in calli_string:
                     ref_img = os.path.join('reference', str + '.png')
                     ref_img = np.expand_dims(util.image_load(ref_img), 0)
                     imgs.append(sess.run(self.output, feed_dict={self.x: ref_img}))
-
                 for i in range(len(calli_string)):
                     if i > 0:
-                        temp = np.concatenate([temp, imgs[i].reshape(224, 224)], 1)
+                        if i is calli_string.index(zoom_str[j]):
+                            img = imgs[i].squeeze()*255
+                            img = Image.fromarray(img)
+                            img = img.resize((target_size,target_size))
+                            img = np.asarray(img)
+                            temp = np.concatenate([temp, img], 1)
+                        else:
+                            img = imgs[i].squeeze() *255
+                            img = Image.fromarray(img)
+                            img = self.pad_resize(img,target_size)
+                            temp = np.concatenate([temp, img], 1)
+
+
                     else:
-                        temp = imgs[0].reshape(224, 224)
-                plt.imsave(calli_string + '.png',temp,cmap='binary_r')
+                        img = imgs[i].squeeze()*255
+                        img = Image.fromarray(img)
+                        img = self.pad_resize(img,target_size)
+                        temp = img
+
+                plt.imsave(calli_string + '.png', temp, cmap='binary_r')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -284,5 +312,5 @@ if __name__ == '__main__':
     # elif args.mode == 'train2':
     #     model.train_part2(args.reference_root,args.target, args.epoch, args.step,args.save_path2)
     # elif args.mode == 'test':
-    #     model.test(args.output_dir,args.reference_root, args.train_root, args.epoch, args.step)
+    #     model.test(args.reference_root, args.train_root, args.epoch, args.step,args.output_dir)
 
