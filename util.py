@@ -45,6 +45,8 @@ def make_batch2(reference_font='reference',target='calli3',batch_size=16,num_cla
     labels=[]
 
     chars = os.listdir(target)
+    ref_char = os.listdir(reference_font)
+    chars = list(set(chars) & set(ref_char))
     charss = [char.split('.')[0] for char in os.listdir(reference_font)]
 
     ref_path = [os.path.join(reference_font,char) for char in chars]
