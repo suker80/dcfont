@@ -1,8 +1,4 @@
-paper : http://www.icst.pku.edu.cn/zlian/docs/20181024110234919639.pdf
 
-dataset : https://drive.google.com/open?id=1HPlkkvD4_ErOoALt2A3LjtGOvRDVMR-M
-
-calligraphy dataset : https://drive.google.com/open?id=12e1RfoI3nYnQFk1ddrfJJMZEoj3Qw397
 
 ![Alt Text](model.bmp)
 ## Requirements 
