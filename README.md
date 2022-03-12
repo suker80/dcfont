@@ -1,8 +1,12 @@
+paper : http://www.icst.pku.edu.cn/zlian/docs/20181024110234919639.pdf
 
+dataset : https://drive.google.com/open?id=1HPlkkvD4_ErOoALt2A3LjtGOvRDVMR-M
+
+calligraphy dataset : https://drive.google.com/open?id=12e1RfoI3nYnQFk1ddrfJJMZEoj3Qw397
 
 ![Alt Text](model.bmp)
 ## Requirements 
-- python 2.7
+- python 3.6
 - Tensorflow 1.14
 - Pillow
 - numpy
@@ -40,9 +44,9 @@
 ## Test mode
 훈련한 모델을 예측
 
-`python dcfont.py --reference_root referecne --output_dir test_result --mode test `
+`python dcfont.py --reference_root referecne --output_dir test_result --mode test --checkpoint_dir --batch_size 1 `
 
 - `output_dir` test image를 저장할 경로
-
+- `checkpoint_dir` 
 
 
